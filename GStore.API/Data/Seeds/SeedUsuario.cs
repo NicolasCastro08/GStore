@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using GStore.API.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,15 +8,15 @@ public class SeedUsuario
 {
     public SeedUsuario(ModelBuilder builder)
     {
-        #region Perfis de Usuario
+        #region Perfis de Usuário
         List<IdentityRole> perfis = [
             new() {
-                Id = "e5e46613-1600-4a23-a5e8-d5cba949b561",
+                Id = "893fe876-481f-476a-bd49-d1f27646ee55",
                 Name = "Administrador",
                 NormalizedName = "ADMINISTRADOR"
             },
             new() {
-                Id = "2a8a6a23-ece5-45da-ae85-39344451214b",
+                Id = "781cd017-4d08-4452-9f54-3d55d25a2d01",
                 Name = "Cliente",
                 NormalizedName = "CLIENTE"
             }
@@ -25,10 +24,10 @@ public class SeedUsuario
         builder.Entity<IdentityRole>().HasData(perfis);
         #endregion
 
-        #region Usuario
+        #region Usuário
         List<Usuario> usuarios = [
             new() {
-               Id = "fca9b084-c3d5-4c55-8b18-66c00289e601",
+                Id = "fca9b084-c3d5-4c55-8b18-66c00289e601",
                 Email = "admin@gstore.com.br",
                 NormalizedEmail = "ADMIN@GSTORE.COM.BR",
                 UserName = "Admin",
@@ -38,22 +37,17 @@ public class SeedUsuario
                 Nome = "Diego Fernando dos Santos Junior",
                 DataNascimento = DateTime.Parse("02/05/2008"),
                 Foto = "/img/usuarios/fca9b084-c3d5-4c55-8b18-66c00289e601.png"
-                
             }
         ];
-         foreach(var usuario in usuarios)
+        foreach(var usuario in usuarios)
         {
             PasswordHasher<Usuario> pass = new();
             usuario.PasswordHash = pass.HashPassword(usuario, "123456");
         }
         builder.Entity<Usuario>().HasData(usuarios);
-        }
         #endregion
 
-        #region Usuario Perfil
+        #region Usuário Perfil
         #endregion
-
-        
     }
-    
 }
