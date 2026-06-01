@@ -1,22 +1,21 @@
-using System.ComponentModel;
-using System.Text;
 using Google.Protobuf.WellKnownTypes;
 using GStore.API.Data;
 using GStore.API.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
+using Mysqlx.Cursor;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Serviço de Conexão com o Banco
 string conexao = builder.Configuration.GetConnectionString("Conexao");
-builder.Services.AddDbContext<AppDbContext>(options => 
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySQL(conexao)
 );
 
@@ -58,64 +57,65 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey)),
     };
 });
 
-// Configuração do serviço de autorização
+//Configuração do serviço de autorização
 builder.Services.AddAuthorization();
 
-// Configuração dos serviços customizados
+//Configuração do serviço customizado
 
 
-// Configuração do CORS
+//Configuração do CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("PermitirTudo", policy =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader(); 
+              .AllowAnyHeader();
     });
 });
 
-// Configuração do Swagger
 builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
     {
-       PageTitle = "GStore API",
-       Version = "v1",
-       Description = "API de fornecimento de dados de produtos" 
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+        c.SwaggerDoc("v1", new()
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            }, new string[]{}
-        }
-    });
-});
+            Title = "GStore.API",
+            Version = "v1",
+            Description = "API para gerenciamento de produtos de beleza",
+        });
 
+        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                }, new string[] {}
+            }
+        });
+    }
+);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Garantir que o banco exista ao executar
+// Garantir que o banco de dados seja criado e atualizado com as migrações
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.EnsureCreatedAsync();
+
 }
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -124,21 +124,18 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Palmeiras Store v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "GStore.API v1");
         c.RoutePrefix = string.Empty;
     });
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
 app.UseHttpsRedirection();
 
-app.UseStaticFiles(); //
+app.UseStaticFiles();
 
+app.UseCors("AllowAll");
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
