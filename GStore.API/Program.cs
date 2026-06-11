@@ -1,14 +1,12 @@
-using Google.Protobuf.WellKnownTypes;
+using System.Text;
 using GStore.API.Data;
 using GStore.API.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.CodeAnalysis.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi.Models;
-using Mysqlx.Cursor;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Serviço de Autenticação e Autorização - Identity
 builder.Services.AddIdentity<Usuario, IdentityRole>(options =>
 {
-    // Configurar Senha 
+    // Configurar Senha
     options.Password.RequiredLength = 6;
     options.Password.RequiredUniqueChars = 0;
 
@@ -38,7 +36,7 @@ builder.Services.AddIdentity<Usuario, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // Serviços JWT
-var jwtSettings = builder.Configuration.GetSection("JwtSetting");
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 
 builder.Services.AddAuthentication(options =>
@@ -57,20 +55,20 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey)),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!))
     };
 });
 
-//Configuração do serviço de autorização
+// Configuração do serviço de autorização
 builder.Services.AddAuthorization();
 
-//Configuração do serviço customizado
+// Configuração dos serviços customizados
 
 
-//Configuração do CORS
+// Configuração do CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("PermitirTudo", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
@@ -78,6 +76,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddControllers();
+
+// Configuração do Scalar
+builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(c =>
     {
         c.SwaggerDoc("v1", new()
@@ -87,51 +89,34 @@ builder.Services.AddSwaggerGen(c =>
             Description = "API para gerenciamento de produtos de beleza",
         });
 
-        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                }, new string[] {}
-            }
+            Name = "Authorization",
+            Description = "Cabeçalho da autorização JWT. Exemplo: \"Authorization: Bearer {token}\"",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.ApiKey,
+            Scheme = "Bearer",
         });
-    }
-);
-
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+    });
 
 var app = builder.Build();
 
-// Garantir que o banco de dados seja criado e atualizado com as migrações
+// Garantir que o banco exista ao executar
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
-
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.EnsureCreatedAsync();
 }
-
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    //app.MapOpenApi();
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "GStore.API v1");
-        c.RoutePrefix = string.Empty;
-    });
+    app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+app.UseStaticFiles(); // Importante para gerenciamento de imagens no backend
 
 app.UseCors("AllowAll");
 
